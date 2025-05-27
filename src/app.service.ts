@@ -11,7 +11,7 @@ export class AppService {
 
   constructor(private configService: ConfigService) {}
 
-  async handleUpload(file: Express.Multer.File) {
+  async extractReceiptDetails(file: Express.Multer.File) {
     try {
       const base64Image = file.buffer.toString('base64');
 
@@ -49,30 +49,17 @@ export class AppService {
       - Use ISO 8601 format for dates (YYYY-MM-DD).
       - Use a 3-letter ISO 4217 currency code (e.g., USD, EUR, AUD).
       - If any field is not clearly visible or missing, return it as null.
+      - Don 't contain any extra characters like 'json'.
       `;
     
-    const payload = {
-      model: 'gpt-4-vision-preview',
+    const completions = await this.openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
       messages: [
         {
           role: 'user',
           content: [
             { type: 'text', text: prompt },
             { type: 'image_url', image_url: { url: `data:${mimetype};base64,${base64}` } }
-          ]
-        }
-      ],
-      max_tokens: 500,
-    }
-
-    const completions = await this.openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            // { type: 'image_url', image_url: { url: `data:${mimetype};base64,${base64}` } }
           ]
         }
       ],

@@ -2,26 +2,18 @@ import { Controller, Get, Post, UploadedFile, UseInterceptors } from '@nestjs/co
 import { AppService } from './app.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage, memoryStorage } from 'multer';
-import { extname } from 'path';
 
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Post('image')
+  @Post('extract-receipt-details')
   @UseInterceptors(FileInterceptor('file', {
-    // storage: diskStorage({
-    //   destination: './uploads',
-    //   filename: (req, file, callback) => {
-    //     const uniqueName = `${Date.now()}${extname(file.originalname)}`;
-    //     callback(null, uniqueName);
-    //   }
-    // }),
     storage: memoryStorage(),
     fileFilter: (req, file, cb) => {
-      if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+      if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
         return cb(
-          new Error('Only valid image files are allowed! (.jpg, .jpeg, .png, .gif)'), 
+          new Error('Only valid image files are allowed! (.jpg, .jpeg, .png)'), 
           false
         );
       }
@@ -30,7 +22,7 @@ export class AppController {
   }))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
     try {
-      return this.appService.handleUpload(file);
+      return this.appService.extractReceiptDetails(file);
     } catch (error) {
       throw error;
     }
