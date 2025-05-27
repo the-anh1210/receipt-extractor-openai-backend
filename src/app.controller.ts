@@ -1,7 +1,8 @@
 import { Controller, Get, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { AppService } from './app.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
+import { extname } from 'path';
 
 @Controller()
 export class AppController {
@@ -9,6 +10,13 @@ export class AppController {
 
   @Post('image')
   @UseInterceptors(FileInterceptor('file', {
+    // storage: diskStorage({
+    //   destination: './uploads',
+    //   filename: (req, file, callback) => {
+    //     const uniqueName = `${Date.now()}${extname(file.originalname)}`;
+    //     callback(null, uniqueName);
+    //   }
+    // }),
     storage: memoryStorage(),
     fileFilter: (req, file, cb) => {
       if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
@@ -21,6 +29,10 @@ export class AppController {
     },
   }))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
-    return this.appService.handleUpload(file);
+    try {
+      return this.appService.handleUpload(file);
+    } catch (error) {
+      throw error;
+    }
   }
 }

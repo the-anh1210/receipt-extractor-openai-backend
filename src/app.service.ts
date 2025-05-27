@@ -1,19 +1,33 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
+import { ConfigService } from '@nestjs/config';
+import { OpenAI } from 'openai';
 
 @Injectable()
 export class AppService {
+  private openai = new OpenAI({
+    apiKey: this.configService.get('OPENAI_API_KEY')
+  });
+
+  constructor(private configService: ConfigService) {}
+
   async handleUpload(file: Express.Multer.File) {
-    const base64Image = file.buffer.toString('base64');
+    try {
+      const base64Image = file.buffer.toString('base64');
 
-    const openaiResponse = await this.sendToOpenAI(base64Image, file.mimetype);
+      const openaiResponse = await this.sendToOpenAI(base64Image, file.mimetype);
 
-    return {
-      result: openaiResponse.data
+      return {
+        result: openaiResponse
+      }
+    } catch (error) {
+      console.log(error);
+      throw error;
     }
   }
 
   private async sendToOpenAI(base64: string, mimetype: string) {
+   
     const prompt = `
       You are an intelligent document parser. Extract structured information from the receipt image provided.
 
@@ -51,11 +65,20 @@ export class AppService {
       max_tokens: 500,
     }
 
-    return axios.post('https://api.openai.com/v1/chat/completions', payload, {
-      headers: {
-        Authorization: `Bearer ${'apiKey'}`,
-        'Content-Type': 'application/json',
-      }
-    })
+    const completions = await this.openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            // { type: 'image_url', image_url: { url: `data:${mimetype};base64,${base64}` } }
+          ]
+        }
+      ],
+      max_tokens: 500,
+    });
+
+    return completions.choices[0].message;
   }
 }
