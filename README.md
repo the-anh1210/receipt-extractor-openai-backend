@@ -17,5 +17,9 @@
    OPENAI_API_KEY=...
    
    DATABASE_URL=postgresql://postgres:developer@localhost/postgres // depending on postgresql database you use
+
+   UPLOADCARE_API_KEY=...
    ```
+   - You can postgreSQL service in [render](https://render.com)
+   - In [uploadcare](https://uploadcare.com/), you can get UPLOADCARE_API_KEY for image storage.
 4. Run `npm run start:dev` or `npm run start:debug` to spin-up the backend

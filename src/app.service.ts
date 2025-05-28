@@ -5,8 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Detail } from './entity/detail.entity';
 import { Repository } from 'typeorm';
 import { createDetailDTO } from './dto/create.detail';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { uploadFile } from '@uploadcare/upload-client';
 
 @Injectable()
 export class AppService {
@@ -16,7 +15,6 @@ export class AppService {
   
   @InjectRepository(Detail)
   private detailRepository: Repository<Detail>
-  private uploadDir = './persistent';
 
   constructor(private configService: ConfigService) {}
 
@@ -24,14 +22,14 @@ export class AppService {
     try {
       const base64Image = file.buffer.toString('base64');
       
-      const path = await this.saveFile(file);
+      const imageUrl = await this.saveFile(file);
       
       const openaiResponse = await this.sendToOpenAI(base64Image, file.mimetype);
       
       const json = JSON.parse(openaiResponse.content);
-      
+       
       return {
-        result: await this.saveDetails(file, { ...json, image_url: join(__dirname, path) })
+        result: await this.saveDetails(file, { ...json, image_url: imageUrl })
       }
     } catch (error) {
       console.log(error);
@@ -40,15 +38,12 @@ export class AppService {
   }
 
   async saveFile(file: Express.Multer.File): Promise<string> {
-    return new Promise((resolve, rejects) => {
-      if (!existsSync(this.uploadDir)) {
-        mkdirSync(this.uploadDir, { recursive: true });
-      }
-
-      const filePath = join(this.uploadDir, file.originalname);
-      writeFileSync(filePath, file.buffer)
-      resolve(filePath);
-    })
+    const result = await uploadFile(file.buffer, {
+      publicKey: this.configService.get('UPLOADCARE_API_KEY'),
+      store: 'auto',
+    });
+    console.log(result.cdnUrl);
+    return result.cdnUrl;
   }
 
   async saveDetails(file: Express.Multer.File, dto: createDetailDTO): Promise<Detail> {
