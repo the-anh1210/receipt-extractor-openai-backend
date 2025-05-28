@@ -27,7 +27,7 @@ export class AppService {
       const openaiResponse = await this.sendToOpenAI(base64Image, file.mimetype);
       
       const json = JSON.parse(openaiResponse.content);
-      
+       
       return {
         result: await this.saveDetails(file, { ...json, image_url: imageUrl })
       }
