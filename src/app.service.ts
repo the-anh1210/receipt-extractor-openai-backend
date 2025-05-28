@@ -1,13 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
 import { OpenAI } from 'openai';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Detail } from './entity/detail.entity';
+import { Repository } from 'typeorm';
+import { createDetailDTO } from './dto/create.detail';
 
 @Injectable()
 export class AppService {
   private openai = new OpenAI({
     apiKey: this.configService.get('OPENAI_API_KEY')
   });
+  
+  @InjectRepository(Detail)
+  private detailRepository: Repository<Detail>
 
   constructor(private configService: ConfigService) {}
 
@@ -16,14 +23,21 @@ export class AppService {
       const base64Image = file.buffer.toString('base64');
 
       const openaiResponse = await this.sendToOpenAI(base64Image, file.mimetype);
-
+      
+      const json = JSON.parse(openaiResponse.content);
+      
       return {
-        result: openaiResponse
+        result: await this.saveDetails(file, json)
       }
     } catch (error) {
       console.log(error);
-      throw error;
+      throw new HttpException('Invaild Result', HttpStatus.NOT_ACCEPTABLE);
     }
+  }
+
+  async saveDetails(file: Express.Multer.File, dto: createDetailDTO): Promise<Detail> {
+    const detail = this.detailRepository.create(dto);
+    return await this.detailRepository.save(detail);
   }
 
   private async sendToOpenAI(base64: string, mimetype: string) {
@@ -50,6 +64,7 @@ export class AppService {
       - Use a 3-letter ISO 4217 currency code (e.g., USD, EUR, AUD).
       - If any field is not clearly visible or missing, return it as null.
       - Don 't contain any extra characters like 'json'.
+      - If result is unterminated json string, please make it approximately vaild json.
       `;
     
     const completions = await this.openai.chat.completions.create({
@@ -63,7 +78,7 @@ export class AppService {
           ]
         }
       ],
-      max_tokens: 500,
+      max_tokens: 1000,
     });
 
     return completions.choices[0].message;
