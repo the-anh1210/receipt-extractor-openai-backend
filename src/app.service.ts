@@ -1,11 +1,12 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
 import { OpenAI } from 'openai';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Detail } from './entity/detail.entity';
 import { Repository } from 'typeorm';
 import { createDetailDTO } from './dto/create.detail';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { join } from 'path';
 
 @Injectable()
 export class AppService {
@@ -15,24 +16,39 @@ export class AppService {
   
   @InjectRepository(Detail)
   private detailRepository: Repository<Detail>
+  private uploadDir = './persistent';
 
   constructor(private configService: ConfigService) {}
 
   async extractReceiptDetails(file: Express.Multer.File) {
     try {
       const base64Image = file.buffer.toString('base64');
-
+      
+      const path = await this.saveFile(file);
+      
       const openaiResponse = await this.sendToOpenAI(base64Image, file.mimetype);
       
       const json = JSON.parse(openaiResponse.content);
       
       return {
-        result: await this.saveDetails(file, json)
+        result: await this.saveDetails(file, { ...json, image_url: join(__dirname, path) })
       }
     } catch (error) {
       console.log(error);
       throw new HttpException('Invaild Result', HttpStatus.NOT_ACCEPTABLE);
     }
+  }
+
+  async saveFile(file: Express.Multer.File): Promise<string> {
+    return new Promise((resolve, rejects) => {
+      if (!existsSync(this.uploadDir)) {
+        mkdirSync(this.uploadDir, { recursive: true });
+      }
+
+      const filePath = join(this.uploadDir, file.originalname);
+      writeFileSync(filePath, file.buffer)
+      resolve(filePath);
+    })
   }
 
   async saveDetails(file: Express.Multer.File, dto: createDetailDTO): Promise<Detail> {

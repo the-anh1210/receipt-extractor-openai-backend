@@ -7,4 +7,5 @@ export class createDetailDTO {
   items: CreateItemDTO[];
   tax: number;
   total: number;
+  image_url: string;
 }
